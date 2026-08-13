@@ -1,0 +1,19 @@
+{
+  "name": "prism-loop",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "PRISM LOOP - js13kGames 2026 entry (theme: Unicorns and Rainbows)",
+  "scripts": {
+    "dev": "node build.mjs --dev",
+    "build": "node build.mjs",
+    "shot": "node shot.mjs"
+  },
+  "devDependencies": {
+    "advzip-bin": "^2.0.0",
+    "ect-bin": "^1.4.1",
+    "esbuild": "^0.28.2",
+    "roadroller": "^2.1.0",
+    "terser": "^5.50.0"
+  }
+}
