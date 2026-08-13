@@ -393,7 +393,7 @@ setLoopCb((n, mult, cx, cy, cz, at) => {
   stamp(cx, cz, 14 + n * 2.5, 0.7);
 });
 // test hook: lets the headless harness verify enclosure deterministically
-self.D26 = { S, GLM, TR, P, peekPaint };
+self.D26 = { S, GLM, TR, P, peekPaint, stamp };
 
 initInput(() => { if (!started) { started = 1; clearPaint(); resetGame(); } });
 requestAnimationFrame(frame);

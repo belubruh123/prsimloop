@@ -91,6 +91,17 @@ for (const [at, keys] of PLAN) {
   }
 }
 
+// Deterministic check that restored colour actually renders: paint a wide
+// patch centred on the player, then capture it.
+await page.evaluate(() => {
+  const { P, stamp } = self.D26;
+  for (let i = 0; i < 9; i++)
+    stamp(P._x + (i % 3 - 1) * 26, P._z + ((i / 3 | 0) - 1) * 26, 30, 1);
+});
+await page.waitForTimeout(1200);
+await page.screenshot({ path: SHOTS + '/restored.png' });
+console.log('  shot shots/restored.png');
+
 const st = await page.evaluate(() => ({
   score: self.D26.S._score, combo: self.D26.S._combo,
   time: +self.D26.S._time.toFixed(1), gloom: self.D26.GLM.length, trail: self.D26.TR.length, paint: self.D26.peekPaint(),
