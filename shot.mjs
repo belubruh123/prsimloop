@@ -93,6 +93,10 @@ for (const [at, keys] of PLAN) {
         }
     });
     console.log('   seeded 24 gloom around the turn');
+    // capture the exact frame the loop pays off on
+    await page.waitForFunction(() => self.D26.S._score > 0, null, { timeout: 30000 }).catch(() => { });
+    await page.screenshot({ path: SHOTS + '/payoff.png' });
+    console.log('  shot shots/payoff.png');
   }
 }
 

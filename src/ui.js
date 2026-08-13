@@ -103,15 +103,19 @@ const hud = (T, vp) => {
     rect(W / 2 - 60 * k, H - 44 * k, 120 * k * g, 5 * k, 1.3, 1.1, 1.4, 0.8);
   }
 
-  // floating score popup at the loop that earned it
+  // Floating score popup anchored to the loop that earned it. You usually fly
+  // straight past what you enclosed, so fall back to a fixed on-screen spot
+  // rather than letting the reward disappear behind the camera.
   if (S._pop) {
     const p = S._pop;
-    const sc = project(vp, p._x, p._y + (1.5 - p._l) * 9, p._z);
-    if (sc) {
-      const a = clamp(p._l * 1.6, 0, 1);
-      rainbowText('+' + commas(p._g), sc[0], sc[1], 34 * k, a, 1, T * 0.3);
-      text(p._n + ' FREED', sc[0], sc[1] + 34 * k, 15 * k, 1, 1, 1, a * 0.8, 1);
-    }
+    const rise = (1.5 - p._l) * 9;
+    let sc = project(vp, p._x, p._y + rise, p._z);
+    const m = 90 * k;
+    if (!sc || sc[0] < m || sc[0] > W - m || sc[1] < m || sc[1] > H - m)
+      sc = [W / 2, H * 0.30 - rise * 2 * k];
+    const a = clamp(p._l * 1.6, 0, 1);
+    rainbowText('+' + commas(p._g), sc[0], sc[1], 34 * k, a, 1, T * 0.3);
+    text(p._n + ' FREED', sc[0], sc[1] + 34 * k, 15 * k, 1, 1, 1, a * 0.8, 1);
   }
 
   if (S._sever > 0.05) text('RIBBON CUT!', W / 2, H * 0.32, 26 * k, 1, 0.6, 0.65, S._sever, 1);

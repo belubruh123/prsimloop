@@ -364,14 +364,16 @@ const frame = (now) => {
   // Thunderclouds: round, dark, and they flicker - fly through one and your
   // ribbon is severed.
   for (const c of STORM) {
-    const flick = sin(c._ph * 2.3) > 0.97 ? 1.9 : 1;
-    const b = (0.36 + sin(c._ph * 3) * 0.03) * flick;
+    // Drawn a little tighter than the collision radius and kept flat, so being
+    // caught by one costs you the ribbon without blinding you.
+    const flick = sin(c._ph * 2.3) > 0.97 ? 1.5 : 1;
+    const b = (0.32 + sin(c._ph * 3) * 0.03) * flick;
     qaxis(tq, 0, 1, 0, c._ph * 0.15);
     for (let i = 0; i < 5; i++) {
       const a = (i * TAU) / 5 + c._ph * 0.2;
-      const rr2 = i === 4 ? 0 : c._r * 0.52;
-      push(MESH._sph, c._x + cos(a) * rr2, c._y + sin(i * 2.1) * 1.2 + (i === 4 ? 1.6 : 0), c._z + sin(a) * rr2,
-        c._r * (i === 4 ? 1.25 : 1.05), c._r * 0.62, c._r * (i === 4 ? 1.15 : 0.95), tq,
+      const rr2 = i === 4 ? 0 : c._r * 0.46;
+      push(MESH._sph, c._x + cos(a) * rr2, c._y + sin(i * 2.1) * 0.9 + (i === 4 ? 1.3 : 0), c._z + sin(a) * rr2,
+        c._r * (i === 4 ? 1.0 : 0.84), c._r * 0.44, c._r * (i === 4 ? 0.92 : 0.76), tq,
         b, b * 0.94, b * 1.3, 1, ...WHITE);
     }
   }
