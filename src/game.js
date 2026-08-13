@@ -97,8 +97,12 @@ export const resetGame = () => {
   try { S._best = +localStorage.pl26 || 0; } catch (e) { }
 };
 
+let onEnd = () => { };
+export const setEndCb = (f) => (onEnd = f);
+
 const endRun = () => {
   S._over = 1; S._run = 0;
+  onEnd();
   if (S._score > S._best) {
     S._best = S._score;
     try { localStorage.pl26 = S._score; } catch (e) { }
@@ -156,6 +160,7 @@ export const updateGame = (dt) => {
   S._shake = max(0, S._shake - dt * 2.6);
   S._slow = max(0, S._slow - dt);
   S._sever = max(0, S._sever - dt * 2.5);
+  if (S._pop && (S._pop._l -= dt) <= 0) S._pop = null;
 
   // particles
   for (let i = PART.length - 1; i >= 0; i--) {

@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "node build.mjs --dev",
     "build": "node build.mjs",
-    "shot": "node shot.mjs"
+    "shot": "node shot.mjs",
+    "verify": "node verify.mjs"
   },
   "devDependencies": {
     "advzip-bin": "^2.0.0",

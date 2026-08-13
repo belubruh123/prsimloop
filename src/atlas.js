@@ -83,6 +83,29 @@ export const blit = (x, cx, cy, rows, pal) => {
     }
 };
 
+// The UI font is rasterised with Canvas2D into atlas cells at boot, so no glyph
+// data is shipped at all. Magnified with NEAREST it reads as chunky pixel type.
+export const CHARS = "0123456789:.,'!?X+-%/ ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const FONT_ROW = 8;
+
+export const charUV = (ch) => {
+  const i = CHARS.indexOf(ch);
+  return i < 0 ? 0 : U(i % GRID, FONT_ROW + ((i / GRID) | 0));
+};
+
+const drawFont = (x) => {
+  x.font = 'bold 14px Verdana,DejaVu Sans,sans-serif';
+  x.textAlign = 'center';
+  x.textBaseline = 'middle';
+  x.fillStyle = '#fff';
+  for (let i = 0; i < CHARS.length; i++) {
+    if (CHARS[i] === ' ') continue;
+    const cx = (i % GRID) * CELL, cy = (FONT_ROW + ((i / GRID) | 0)) * CELL;
+    // maxWidth condenses wide glyphs so nothing bleeds into the next cell
+    x.fillText(CHARS[i], cx + CELL / 2, cy + CELL / 2 + 1, CELL - 5);
+  }
+};
+
 export const makeAtlas = () => {
   const [c, x] = cv(CELL * GRID, CELL * GRID);
   ATLAS_CV = x;
@@ -90,6 +113,7 @@ export const makeAtlas = () => {
   // cell 0,0 - solid white, used by every untextured surface
   x.fillStyle = '#fff';
   x.fillRect(0, 0, CELL, CELL);
+  drawFont(x);
   return x;
 };
 

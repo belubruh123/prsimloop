@@ -1,15 +1,19 @@
 import { C, G, W, H, resize, program, mesh, push, flush, ribbon, drawRibbon } from './gl.js';
 import { VS_MAIN, FS_MAIN, VS_SKY, FS_SKY, VS_TERR, FS_TERR, VS_RIB, FS_RIB } from './shaders.js';
-import { TR, GLM, PART, STORM, S, updateGame, resetGame, setLoopCb } from './game.js';
+import { TR, GLM, PART, STORM, S, updateGame, resetGame, setLoopCb, setEndCb } from './game.js';
 import * as MB from './mesh.js';
 import { terrainH, ARENA } from './mesh.js';
-import { makeAtlas, finishAtlas, makeTile, tex, WHITE, U } from './atlas.js';
+import { makeAtlas, finishAtlas, makeTile, WHITE } from './atlas.js';
 import { initPaint, clearPaint, stamp, paintTex, EXT, peekPaint } from './paint.js';
 import {
   PI, TAU, sin, cos, clamp, lerp, damp, angDamp, min, max, abs, rnd, seed, rr, floor, hypot,
-  qid, qaxis, qmul, qvec, mPerspective, mView, mMul,
+  qid, qaxis, qmul, qvec, mPerspective, mView, mMul, mOrtho,
 } from './math.js';
-import { P, initInput, updatePlayer, boosting, edgeWarn } from './player.js';
+import { P, initInput, updatePlayer, boosting, unlock, locked } from './player.js';
+import { MODE, drawUI, setQuad } from './ui.js';
+import {
+  initAudio, toggleMute, muted, setIntensity, audioState, sfxLoop, sfxWhiff, sfxSever, sfxUI, sfxStart, sfxOver,
+} from './audio.js';
 
 // --- boot ---------------------------------------------------------------------
 resize();
@@ -26,12 +30,10 @@ const ribGnd = ribbon(RIBN);
 
 const mk = (b, n) => mesh(b.v, b.i, n);
 const MESH = {
-  _box: mk(MB.box(), 400),
   _sph: mk(MB.sphere(6, 9), 900),
   _cone: mk(MB.cone(7), 200),
   _cyl: mk(MB.cyl(0.5, 0.5, 7), 500),
   _quad: mk(MB.quad(), 700),
-  _plane: mk(MB.plane(), 200),
   // hexagonal bipyramid - the prism crystals scattered over the island
   _cry: mk(MB.revolve([[0, 0.5], [0.34, 0.14], [0.3, -0.2], [0, -0.5]], 6), 400),
 };
@@ -44,6 +46,7 @@ const texTile = makeTile();
 initPaint();
 
 const vpM = new Float32Array(16);
+const uiM = new Float32Array(16);
 const projM = new Float32Array(16);
 const viewM = new Float32Array(16);
 const camQ = qid(), tq = qid(), tq2 = qid();
@@ -95,7 +98,7 @@ const part = (m, q, ox, oy, oz, sx, sy, sz, lq, r, g, b, uv) => {
     r, g, b, 1, uv[0], uv[1], uv[2], uv[3]);
 };
 
-const bodyQ = qid(), legQ = qid();
+const bodyQ = qid();
 
 const drawUnicorn = () => {
   // body frame = flight orientation with the visual roll applied
@@ -153,7 +156,7 @@ const drawUnicorn = () => {
 };
 
 /** Rainbow ramp, 0..1 -> [r,g,b]. */
-export const hue = (f) => {
+const hue = (f) => {
   const a = clamp(f, 0, 1) * 6;
   const i = floor(a), k = a - i;
   const R = [[1, .42, .55], [1, .68, .42], [1, .92, .5], [.55, .92, .6], [.45, .8, 1], [.62, .55, .98], [.9, .55, .95], [1, .42, .55]];
@@ -198,7 +201,7 @@ const buildRibbon = (m, ground, width) => {
 const smoothstep01 = (v, a, b) => { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 
 // --- frame --------------------------------------------------------------------
-let T = 0, last = 0, started = 0;
+let T = 0, last = 0, sevPrev = 0;
 
 const frame = (now) => {
   requestAnimationFrame(frame);
@@ -207,8 +210,27 @@ const frame = (now) => {
   T += rdt;
   // brief slow-motion on a successful loop - the single cheapest feel win
   const dt = S._slow > 0 ? rdt * 0.35 : rdt;
+  const live = MODE._v === 1;
 
-  if (started) { updatePlayer(dt); updateGame(dt); }
+  if (live) {
+    updatePlayer(dt);
+    updateGame(dt);
+    if (S._sever > 0.9 && !sevPrev) sfxSever();
+    sevPrev = S._sever > 0.9;
+  } else if (MODE._v === 3) updateGame(dt);   // let particles settle on the end screen
+  if (!MODE._v) {
+    // attract mode: drift the unicorn on a slow orbit over the island
+    const a = T * 0.13;
+    P._x = cos(a) * 74;
+    P._z = sin(a) * 74;
+    P._y = terrainH(P._x, P._z) + 30;
+    P._yaw = PI - a;
+    P._pitch = P._roll = 0;
+    P._t += dt;
+    qmul(P._q, qaxis(tq, 0, 1, 0, P._yaw), qaxis(tq2, 1, 0, 0, 0));
+  }
+  setIntensity(clamp((S._combo - 1) / 5, 0, 1) * (live ? 1 : 0.25));
+  if (live && S._over) { MODE._v = 3; unlock(); }
 
   // --- camera ---
   camYaw = angDamp(camYaw, P._yaw, 7, dt);
@@ -226,7 +248,7 @@ const frame = (now) => {
   const tx = P._x - vF[0] * dist + vU[0] * 3.2;
   const ty = P._y - vF[1] * dist + vU[1] * 3.2 + 2.6;
   const tz = P._z - vF[2] * dist + vU[2] * 3.2;
-  const cs = started ? 14 : 3;
+  const cs = MODE._v ? 14 : 3;
   camX = damp(camX, tx, cs, rdt);
   camY = damp(camY, ty, cs, rdt);
   camZ = damp(camZ, tz, cs, rdt);
@@ -327,12 +349,15 @@ const frame = (now) => {
     const bob = sin(g._ph * 1.3) * 0.7;
     qaxis(tq, 0, 1, 0, g._ph * 0.8);
     push(MESH._cry, g._x, g._y + bob, g._z, s * 2.9, s * 5.6, s * 2.9, tq,
-      0.50 * k, 0.47 * k, 0.60 * k, 1, ...WHITE);
+      0.40 * k, 0.37 * k, 0.54 * k, 1, ...WHITE);
+    // Trapped light orbiting outside the dark body - bright motes against a dark
+    // silhouette are what make a gloom legible as a target from a distance.
+    const pulse = 1.5 + 0.6 * sin(g._ph * 2.6);
     for (let i = 0; i < 3; i++) {
       const a = g._ph * 1.5 + (i * TAU) / 3;
-      qaxis(tq2, 0, 1, 0, -a * 2);
-      push(MESH._cry, g._x + cos(a) * s * 2.4, g._y + bob + sin(a * 1.7) * 1.2, g._z + sin(a) * s * 2.4,
-        s * 1.0, s * 2.0, s * 1.0, tq2, 0.62 * k, 0.58 * k, 0.74 * k, 1, ...WHITE);
+      push(MESH._sph, g._x + cos(a) * s * 2.5, g._y + bob + sin(a * 1.7) * 1.6, g._z + sin(a) * s * 2.5,
+        s * 0.9, s * 0.9, s * 0.9, tq,
+        pulse * 1.15 * k, pulse * 1.3 * k, pulse * 1.6 * k, 1, ...WHITE);
     }
   }
 
@@ -382,18 +407,67 @@ const frame = (now) => {
   drawRibbon(ribAir);
   G.depthMask(true);
   G.enable(G.CULL_FACE);
+
+  // --- UI: an orthographic pass of textured quads, no HTML anywhere ---
+  mOrtho(uiM, W, H);
+  G.useProgram(pMain);
+  G.uniformMatrix4fv(pMain._u('u_vp'), false, uiM);
+  G.uniform4f(pMain._u('u_par'), 1, 0.02, 0, T);   // fully emissive, no fog
+  G.uniform2f(pMain._u('u_des'), 0, 0);
+  G.disable(G.DEPTH_TEST);
+  G.disable(G.CULL_FACE);
+  G.blendFunc(G.SRC_ALPHA, G.ONE_MINUS_SRC_ALPHA);
+  drawUI(T, vpM, muted);
+  G.enable(G.DEPTH_TEST);
+  G.enable(G.CULL_FACE);
   G.disable(G.BLEND);
 };
 
 setLoopCb((n, mult, cx, cy, cz, at) => {
   console.log('LOOP n=' + n + ' x' + mult + ' score=' + S._score + ' time=' + S._time.toFixed(1));
-  if (!n) return;
+  if (!n) { sfxWhiff(); return; }
+  sfxLoop(n, mult);
   // restore a generous patch of colour around everything the loop caught
   for (let i = 0; i < at.length; i += 2) stamp(at[i], at[i + 1], 22, 0.9);
   stamp(cx, cz, 14 + n * 2.5, 0.7);
 });
-// test hook: lets the headless harness verify enclosure deterministically
-self.D26 = { S, GLM, TR, P, peekPaint, stamp };
+setEndCb(sfxOver);
 
-initInput(() => { if (!started) { started = 1; clearPaint(); resetGame(); } });
+// --- state machine ------------------------------------------------------------
+const startRun = () => {
+  initAudio();
+  clearPaint();
+  resetGame();
+  MODE._v = 1;
+  sfxStart();
+  if (!locked) C.requestPointerLock();
+};
+
+addEventListener('keydown', (e) => {
+  const c = e.code;
+  if (c === 'KeyM') { initAudio(); toggleMute(); return; }
+  if (c === 'KeyR' && MODE._v > 1) { startRun(); return; }
+  if (c !== 'Escape') return;
+  if (MODE._v === 1) { MODE._v = 2; unlock(); sfxUI(); }
+  else if (MODE._v === 2) { MODE._v = 1; sfxUI(); if (!locked) C.requestPointerLock(); }
+});
+
+initInput(() => {
+  if (MODE._v === 0 || MODE._v === 3) startRun();
+  else if (MODE._v === 2) MODE._v = 1;
+});
+
+setQuad(MESH._quad);
+try { S._best = +localStorage.pl26 || 0; } catch (e) { }
+resetGame();          // populate the island so the title screen has something to show
+MODE._v = 0;
+// leave a few restored patches on the attract-mode island so the title screen
+// shows both halves of the premise at once: drained grey and reclaimed colour
+for (let i = 0; i < 7; i++) {
+  const a = (i / 7) * TAU + 0.7;
+  stamp(cos(a) * 52, sin(a) * 52, 30, 0.85);
+}
+// test hook, compiled out of production builds
+if (DEV) self.D26 = { S, GLM, TR, P, MODE, peekPaint, stamp, audioState };
+
 requestAnimationFrame(frame);

@@ -66,7 +66,7 @@ vec3 alb=tx.rgb*v_c.rgb;
 if(u_des.x>.5){
 float pt=texture(u_paint,v_w.xz*u_des.y+.5).r;
 float g=dot(alb,vec3(.32,.5,.18));
-alb=mix(vec3(g)*vec3(.80,.78,.86),alb,pt*.92+.08);}
+alb=mix(vec3(g*.58)*vec3(.74,.73,.92),alb,pt*.92+.08);}
 vec3 c=mix(lit(v_n,alb,v_w,u_cam),alb*1.35,u_par.x);
 o=vec4(fogit(c,length(v_w-u_cam),u_par.z),a);}`;
 
@@ -127,7 +127,7 @@ vec3 alb=mix(gr,rk,slope);
 // paint map drives the grey -> colour restoration
 float pt=texture(u_paint,v_t).r;
 float g=dot(alb,vec3(.32,.5,.18));
-alb=mix(vec3(g)*vec3(.82,.80,.86),alb,pt*.9+.1);
+alb=mix(vec3(g*.60)*vec3(.76,.75,.92),alb,pt*.92+.08);
 vec3 c=lit(v_n,alb,v_w,u_cam);
 c=mix(c,c*vec3(1.06,1.,1.04),pt);
 o=vec4(fogit(c,length(v_w-u_cam),u_par.z),1.);}`;

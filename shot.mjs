@@ -14,7 +14,8 @@ mkdirSync(SHOTS, { recursive: true });
 // Times (ms) to capture, and keys held going into each capture. Holding
 // Space+KeyD flies a hard-banked circle, which is what closes a loop.
 const PLAN = [
-  [600, []],
+  [900, []],          // title screen
+  [1600, []],
   [3000, ['KeyD']],
   [8000, ['Space', 'KeyD']],
   [14000, ['Space', 'KeyD']],
@@ -25,6 +26,7 @@ const PLAN = [
 await build({
   entryPoints: [ROOT + 'src/main.js'],
   bundle: true, format: 'iife', target: 'es2020',
+  define: { DEV: 'true' },
   outfile: OUT + '/b.js', logLevel: 'warning',
 });
 writeFileSync(OUT + '/index.html',
@@ -57,6 +59,9 @@ page.on('console', (m) => {
 });
 
 await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'load' });
+await page.waitForTimeout(900);
+await page.screenshot({ path: SHOTS + '/title.png' });
+console.log('  shot shots/title.png');
 // click starts the game (pointer lock will fail headless; the game still runs)
 await page.mouse.click(640, 360);
 
@@ -102,9 +107,15 @@ await page.waitForTimeout(1200);
 await page.screenshot({ path: SHOTS + '/restored.png' });
 console.log('  shot shots/restored.png');
 
+// Run out the clock so the end screen can be captured too.
+await page.evaluate(() => (self.D26.S._time = 0.4));
+await page.waitForTimeout(2500);
+await page.screenshot({ path: SHOTS + '/gameover.png' });
+console.log('  shot shots/gameover.png  mode=' + await page.evaluate(() => self.D26.MODE._v));
+
 const st = await page.evaluate(() => ({
   score: self.D26.S._score, combo: self.D26.S._combo,
-  time: +self.D26.S._time.toFixed(1), gloom: self.D26.GLM.length, trail: self.D26.TR.length, paint: self.D26.peekPaint(),
+  mode: self.D26.MODE._v, audio: self.D26.audioState(), time: +self.D26.S._time.toFixed(1), gloom: self.D26.GLM.length, trail: self.D26.TR.length, paint: self.D26.peekPaint(),
 }));
 console.log('  state', JSON.stringify(st));
 

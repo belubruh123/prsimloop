@@ -43,10 +43,20 @@ npm install
 npm run dev     # esbuild dev server + watch  -> http://localhost:8000
 npm run build   # production zip, prints size against the 13,312 byte limit
 npm run shot    # headless smoke test + screenshots into shots/
+npm run verify  # compliance check on the built zip (see below)
 ```
 
 `npm run build` fails with a non-zero exit code if the zip exceeds the limit, so the budget can never
 silently slip.
+
+`npm run verify` is the pre-submission gate. It unzips the built artifact into a clean directory, serves
+*only* that directory, plays it in headless Chromium, and fails if any of these is untrue:
+
+- the zip is within 13,312 bytes
+- `index.html` is at the zip root
+- no absolute URL appears anywhere in the payload
+- the page issues zero external requests
+- the game boots with no console or page errors
 
 ### How it fits in 13 KB
 

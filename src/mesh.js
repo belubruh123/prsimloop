@@ -22,24 +22,6 @@ export const tri = (b, a, c, d) => {
 export const quadFace = (b, a, c, d, e) => { tri(b, a, c, d); tri(b, a, d, e); };
 
 // --- primitives ---------------------------------------------------------------
-/** Unit cube centred on origin, each face mapped to the full 0..1 uv rect. */
-export const box = () => {
-  const b = B();
-  // axis, sign -> build the face by permuting a unit square
-  for (let ax = 0; ax < 3; ax++)
-    for (let s = -1; s <= 1; s += 2) {
-      const p = (u, v) => {
-        const c = [0, 0, 0];
-        c[ax] = s * 0.5;
-        c[(ax + 1) % 3] = (u - 0.5) * s;
-        c[(ax + 2) % 3] = v - 0.5;
-        return [c[0], c[1], c[2], u, v];
-      };
-      quadFace(b, p(0, 0), p(1, 0), p(1, 1), p(0, 1));
-    }
-  return b;
-};
-
 /**
  * Surface of revolution around Y. `prof` is a list of [radius, y] pairs.
  * Caps are added automatically wherever an end has non-zero radius.
@@ -90,13 +72,6 @@ export const cyl = (r0 = 0.5, r1 = 0.5, segs = 8) => revolve([[r0, 0.5], [r1, -0
 export const quad = () => {
   const b = B();
   quadFace(b, [-0.5, -0.5, 0, 0, 1], [0.5, -0.5, 0, 1, 1], [0.5, 0.5, 0, 1, 0], [-0.5, 0.5, 0, 0, 0]);
-  return b;
-};
-
-/** Flat quad lying in the XZ plane, facing up (ground decals). */
-export const plane = () => {
-  const b = B();
-  quadFace(b, [-0.5, 0, 0.5, 0, 1], [0.5, 0, 0.5, 1, 1], [0.5, 0, -0.5, 1, 0], [-0.5, 0, -0.5, 0, 0]);
   return b;
 };
 

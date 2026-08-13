@@ -32,6 +32,7 @@ async function bundle() {
     write: false,
     minify: false,
     legalComments: 'none',
+    define: { DEV: 'false' },   // compiles out the headless-test hook
   });
   return r.outputFiles[0].text;
 }
@@ -86,6 +87,7 @@ if (DEV) {
     format: 'iife',
     target: 'es2020',
     outfile: OUT + '/b.js',
+    define: { DEV: 'true' },
     sourcemap: 'inline',
     logLevel: 'info',
   });
