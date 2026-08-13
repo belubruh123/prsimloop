@@ -1,6 +1,6 @@
 // Procedural geometry. Everything is flat-shaded for the chunky low-poly look;
 // `tri()` computes the face normal so no builder has to think about normals.
-import { TAU, sin, cos, fbm, smooth, clamp, hypot, sqrt, PI, max } from './math.js';
+import { TAU, sin, cos, fbm, smooth, clamp, hypot, sqrt, PI, max } from '../engine/math.js';
 
 export const ARENA = 96;
 

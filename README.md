@@ -78,19 +78,39 @@ Nothing is downloaded at runtime. Every asset is generated in code at boot:
 
 ## Layout
 
-| File | Responsibility |
-|---|---|
-| `src/main.js` | boot, frame loop, render order, the unicorn model |
-| `src/gl.js` | WebGL2 core — programs, instanced meshes, ribbon strips |
-| `src/shaders.js` | all GLSL: sky, terrain, instanced objects, rainbow ribbon, paint stamps |
-| `src/mesh.js` | procedural geometry + the island heightfield |
-| `src/game.js` | trail, loop detection, gloom, thunderclouds, scoring |
-| `src/player.js` | flight model and input |
-| `src/paint.js` | the colour-restoration framebuffer |
-| `src/atlas.js` | procedural pixel-art textures |
-| `src/math.js` | quaternions, mat4, noise, seeded PRNG |
-| `build.mjs` | the 13 KB pipeline |
-| `shot.mjs` | headless Chromium smoke test + screenshots |
+Five layers, each depending only on the ones above it — there are no import cycles.
+
+```
+src/
+  main.js          boot, the frame loop, and the render order — the conductor only
+  engine/          reusable and game-agnostic; nothing here knows about unicorns
+    math.js        quaternions, mat4, value noise, seeded PRNG
+    gl.js          WebGL2 core: programs, instanced meshes, ribbon strips
+    atlas.js       procedural pixel-art textures + the UI font
+    audio.js       Web Audio synthesis and the music scheduler
+  world/           what the island *is*
+    shaders.js     all GLSL: sky, terrain, objects, ribbon, paint stamps
+    geometry.js    procedural primitives + the island heightfield
+    paint.js       the colour-restoration framebuffer
+  game/            the rules; no file here draws anything
+    state.js       run state, scoring, persistence, event callbacks
+    player.js      flight model and input
+    entities.js    gloom, thunderclouds, particles
+    trail.js       the trail, self-intersection, and loop closure
+    run.js         start a run; per-frame orchestration
+  render/          how the rules are drawn
+    meshes.js      the shared mesh registry
+    scenery.js     trees, flowers, clouds
+    actors.js      gloom, thunderclouds, sparks
+    unicorn.js     the player model
+    ribbon.js      trail -> the airborne strip and its ground shadow
+  ui/              canvas UI; no HTML is used anywhere
+    draw.js        text, rects, world-to-screen projection
+    screens.js     HUD, title, pause, game over
+```
+
+`game/` is deliberately free of rendering, and `render/` is free of rules: the loop-closure
+logic in `game/trail.js` can be reasoned about — or unit tested — without a GL context.
 
 ## Licence
 

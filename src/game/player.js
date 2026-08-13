@@ -3,9 +3,9 @@
 // important feel decision in the game.
 import {
   PI, TAU, sin, cos, clamp, damp, lerp, min, max, abs, qaxis, qmul, qid, qvec, hypot,
-} from './math.js';
-import { terrainH, ARENA } from './mesh.js';
-import { C } from './gl.js';
+} from '../engine/math.js';
+import { terrainH, ARENA } from '../world/geometry.js';
+import { C } from '../engine/gl.js';
 
 export const P = {
   _x: 0, _y: 20, _z: 62,

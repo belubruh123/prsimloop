@@ -1,9 +1,9 @@
 // The colour-restoration map: a 128x128 single-channel texture covering the
 // island. Converting gloom stamps soft discs into it, and both the terrain and
 // the scenery shaders use it to blend from drained grey back to full colour.
-import { G, program } from './gl.js';
+import { G, program } from '../engine/gl.js';
 import { VS_STAMP, FS_STAMP } from './shaders.js';
-import { ARENA } from './mesh.js';
+import { ARENA } from './geometry.js';
 
 const SZ = 128;
 export const EXT = ARENA * 1.22;   // world half-extent the map covers
