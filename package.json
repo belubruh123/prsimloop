@@ -8,12 +8,14 @@
     "dev": "node build.mjs --dev",
     "build": "node build.mjs",
     "shot": "node shot.mjs",
-    "verify": "node verify.mjs"
+    "verify": "node verify.mjs",
+    "browser": "playwright-core install chromium"
   },
   "devDependencies": {
     "advzip-bin": "^2.0.0",
     "ect-bin": "^1.4.1",
     "esbuild": "^0.28.2",
+    "playwright-core": "^1.62.1",
     "roadroller": "^2.1.0",
     "terser": "^5.50.0"
   }

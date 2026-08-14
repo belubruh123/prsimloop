@@ -42,9 +42,19 @@ Desktop only, by design.
 npm install
 npm run dev     # esbuild dev server + watch  -> http://localhost:8000
 npm run build   # production zip, prints size against the 13,312 byte limit
+
+npm run browser # one-time: fetch the Chromium used by the two test harnesses
 npm run shot    # headless smoke test + screenshots into shots/
 npm run verify  # compliance check on the built zip (see below)
 ```
+
+Windows, macOS and Linux are all supported. `dev` and `build` need nothing but Node —
+paths go through `node:path` and the archive is written in-process by `tools/zip.mjs`,
+so no `zip`/`unzip` binaries are required. The two optimisers (`ect`, `advzip`) ship
+per-platform binaries, and the build degrades to a slightly larger artifact with a
+warning rather than failing if either is unavailable.
+
+`shot` and `verify` additionally need a Chromium, hence the one-time `npm run browser`.
 
 `npm run build` fails with a non-zero exit code if the zip exceeds the limit, so the budget can never
 silently slip.

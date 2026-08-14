@@ -4,10 +4,12 @@ import { build } from 'esbuild';
 import { chromium } from 'playwright-core';
 import { createServer } from 'node:http';
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { join, dirname } from 'node:path';
 
-const ROOT = new URL('.', import.meta.url).pathname;
-const OUT = ROOT + 'dist';
-const SHOTS = ROOT + 'shots';
+const ROOT = dirname(fileURLToPath(import.meta.url));
+const OUT = join(ROOT, 'dist');
+const SHOTS = join(ROOT, 'shots');
 mkdirSync(OUT, { recursive: true });
 mkdirSync(SHOTS, { recursive: true });
 
@@ -24,12 +26,12 @@ const PLAN = [
 ];
 
 await build({
-  entryPoints: [ROOT + 'src/main.js'],
+  entryPoints: [join(ROOT, 'src', 'main.js')],
   bundle: true, format: 'iife', target: 'es2020',
   define: { DEV: 'true' },
-  outfile: OUT + '/b.js', logLevel: 'warning',
+  outfile: join(OUT, 'b.js'), logLevel: 'warning',
 });
-writeFileSync(OUT + '/index.html',
+writeFileSync(join(OUT, 'index.html'),
   '<!doctype html><meta charset=utf-8><title>PRISM LOOP</title>' +
   '<style>html,body{margin:0;height:100%;overflow:hidden;background:#12030f}' +
   'canvas{display:block;width:100%;height:100%}</style>' +
@@ -39,15 +41,25 @@ const srv = createServer((q, s) => {
   const f = q.url === '/' ? '/index.html' : q.url.split('?')[0];
   try {
     s.writeHead(200, { 'content-type': f.endsWith('.js') ? 'text/javascript' : 'text/html' });
-    s.end(readFileSync(OUT + f));
+    s.end(readFileSync(join(OUT, f)));
   } catch { s.writeHead(404); s.end(); }
 }).listen(0);
 const port = srv.address().port;
 
-const browser = await chromium.launch({
-  args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--use-gl=angle',
-    '--enable-webgl', '--ignore-gpu-blocklist', '--no-sandbox'],
-});
+// playwright-core ships no browser; `npm run browser` fetches one once.
+const launch = async () => {
+  try {
+    return await chromium.launch({
+      args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--use-gl=angle',
+        '--enable-webgl', '--ignore-gpu-blocklist', '--no-sandbox'],
+    });
+  } catch (e) {
+    console.error('\n  Chromium is not installed. Run:  npm run browser\n');
+    process.exit(1);
+  }
+};
+
+const browser = await launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 
 const errs = [];
@@ -75,9 +87,9 @@ for (const [at, keys] of PLAN) {
   }
   const wait = at - (Date.now() - t0);
   if (wait > 0) await page.waitForTimeout(wait);
-  const name = `${SHOTS}/t${String(at).padStart(5, '0')}.png`;
+  const name = join(SHOTS, `t${String(at).padStart(5, '0')}.png`);
   await page.screenshot({ path: name });
-  console.log('  shot', name.replace(ROOT, ''));
+  console.log('  shot', name.replace(ROOT, '').replace(/^[\\/]/, ''));
 
   // Once we're established in a hard-banked circle, drop gloom clusters to the
   // left, right and centre of the turn so enclosure is exercised deterministically.
@@ -95,7 +107,7 @@ for (const [at, keys] of PLAN) {
     console.log('   seeded 24 gloom around the turn');
     // capture the exact frame the loop pays off on
     await page.waitForFunction(() => self.D26.S._score > 0, null, { timeout: 30000 }).catch(() => { });
-    await page.screenshot({ path: SHOTS + '/payoff.png' });
+    await page.screenshot({ path: join(SHOTS, 'payoff.png') });
     console.log('  shot shots/payoff.png');
   }
 }
@@ -108,13 +120,13 @@ await page.evaluate(() => {
     stamp(P._x + (i % 3 - 1) * 26, P._z + ((i / 3 | 0) - 1) * 26, 30, 1);
 });
 await page.waitForTimeout(1200);
-await page.screenshot({ path: SHOTS + '/restored.png' });
+await page.screenshot({ path: join(SHOTS, 'restored.png') });
 console.log('  shot shots/restored.png');
 
 // Run out the clock so the end screen can be captured too.
 await page.evaluate(() => (self.D26.S._time = 0.4));
 await page.waitForTimeout(2500);
-await page.screenshot({ path: SHOTS + '/gameover.png' });
+await page.screenshot({ path: join(SHOTS, 'gameover.png') });
 console.log('  shot shots/gameover.png  mode=' + await page.evaluate(() => self.D26.MODE._v));
 
 const st = await page.evaluate(() => ({

@@ -1,46 +1,58 @@
 // Compliance check for the real submission artifact.
-// Unzips prism-loop.zip into a clean directory, serves ONLY that directory,
-// plays it headless, and fails on any error or outbound request.
+// Reads prism-loop.zip, serves ONLY what is inside it, plays it headless, and
+// fails on any error or outbound request. Nothing is written to disk, so a
+// stale file on the filesystem can never mask a missing entry in the archive.
 import { chromium } from 'playwright-core';
 import { createServer } from 'node:http';
-import { execSync } from 'node:child_process';
-import { readFileSync, mkdirSync, rmSync, statSync, readdirSync } from 'node:fs';
+import { statSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { join, dirname } from 'node:path';
+import { readZip } from './tools/zip.mjs';
 
 const LIMIT = 13312;
-const ROOT = new URL('.', import.meta.url).pathname;
-const ZIP = ROOT + 'prism-loop.zip';
-const OUT = ROOT + '.verify';
+const ROOT = dirname(fileURLToPath(import.meta.url));
+const ZIP = join(ROOT, 'prism-loop.zip');
 const fail = [];
 
 const size = statSync(ZIP).size;
 console.log(`\n  zip            ${size} / ${LIMIT} bytes`);
 if (size > LIMIT) fail.push(`zip is ${size - LIMIT} bytes over the limit`);
 
-rmSync(OUT, { recursive: true, force: true });
-mkdirSync(OUT, { recursive: true });
-execSync(`unzip -qo "${ZIP}" -d "${OUT}"`);
+// Read the archive back exactly as a judge's browser would receive it.
+const entries = readZip(ZIP);
+const names = entries.map((e) => e.name);
+console.log(`  zip contents   ${names.join(', ')}`);
+if (!names.includes('index.html')) fail.push('index.html is not at the zip root');
 
-const entries = readdirSync(OUT);
-console.log(`  zip contents   ${entries.join(', ')}`);
-if (!entries.includes('index.html')) fail.push('index.html is not at the zip root');
-
-const html = readFileSync(OUT + '/index.html', 'utf8');
+const html = (entries.find((e) => e.name === 'index.html')?.data || Buffer.alloc(0)).toString('utf8');
 // Any absolute URL in the payload would mean an external dependency.
 const ext = html.match(/https?:\/\/[^"'\s)]+/g);
 if (ext) fail.push('external URL referenced: ' + ext.join(', '));
 
+// Serve straight from the archive, so nothing on disk can mask a missing file.
 const srv = createServer((q, s) => {
-  const f = q.url === '/' ? '/index.html' : q.url.split('?')[0];
-  try {
-    s.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-    s.end(readFileSync(OUT + f));
-  } catch { s.writeHead(404); s.end(); }
+  const f = (q.url === '/' ? '/index.html' : q.url.split('?')[0]).slice(1);
+  const hit = entries.find((e) => e.name === f);
+  if (!hit) { s.writeHead(404); s.end(); return; }
+  s.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+  s.end(hit.data);
 }).listen(0);
 const port = srv.address().port;
 
-const browser = await chromium.launch({
-  args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--use-gl=angle', '--no-sandbox'],
-});
+// playwright-core ships no browser; `npm run browser` fetches one once.
+const launch = async () => {
+  try {
+    return await chromium.launch({
+      args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--use-gl=angle',
+        '--enable-webgl', '--ignore-gpu-blocklist', '--no-sandbox'],
+    });
+  } catch (e) {
+    console.error('\n  Chromium is not installed. Run:  npm run browser\n');
+    process.exit(1);
+  }
+};
+
+const browser = await launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 
 const errs = [];
@@ -60,7 +72,7 @@ await page.keyboard.down('KeyD');
 await page.waitForTimeout(9000);
 await page.keyboard.up('Space');
 await page.keyboard.up('KeyD');
-await page.screenshot({ path: ROOT + 'shots/prod.png' });
+await page.screenshot({ path: join(ROOT, 'shots', 'prod.png') });
 
 // The debug hook is compiled out of production, so probe the canvas instead:
 // a live WebGL canvas that has actually drawn something.
@@ -77,7 +89,6 @@ if (errs.length) fail.push(...new Set(errs));
 
 await browser.close();
 srv.close();
-rmSync(OUT, { recursive: true, force: true });
 
 if (fail.length) {
   console.error('\n  FAILED:\n   - ' + fail.join('\n   - ') + '\n');
